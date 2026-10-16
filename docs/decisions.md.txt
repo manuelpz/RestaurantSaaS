@@ -1,0 +1,72 @@
+# Registro de decisiones técnicas
+
+Este documento registra las decisiones relevantes de arquitectura y tecnología del proyecto Restaurant SaaS.
+
+## DEC-001: Separación entre frontend y backend
+
+**Estado:** Aceptada.
+
+**Decisión:** Utilizar Next.js para el frontend y Spring Boot para el backend, manteniéndolos como aplicaciones independientes.
+
+**Motivo:** Separar la interfaz de usuario de la lógica de negocio, facilitar las pruebas y permitir desplegar ambos componentes de manera independiente.
+
+## DEC-002: PostgreSQL gestionado en Neon
+
+**Estado:** Aceptada.
+
+**Decisión:** Utilizar Neon como servicio de PostgreSQL.
+
+**Motivo:** Evitar administrar un servidor de base de datos propio durante el desarrollo y disponer de una base de datos accesible desde el entorno local.
+
+## DEC-003: Migraciones con Flyway
+
+**Estado:** Aceptada.
+
+**Decisión:** Gestionar los cambios del esquema mediante migraciones SQL versionadas en el repositorio.
+
+**Motivo:** Reproducir los cambios de base de datos de forma controlada en desarrollo y producción.
+
+**Consecuencia:** Las migraciones aplicadas no se modifican ni se renombran en entornos compartidos. Los cambios posteriores se introducen mediante nuevas versiones.
+
+## DEC-004: Aplicación multi-tenant
+
+**Estado:** Aceptada.
+
+**Decisión:** Compartir la aplicación y la base de datos entre restaurantes, aislando sus datos mediante la autorización del backend.
+
+**Motivo:** Facilitar el mantenimiento y reducir la complejidad de operar una instancia independiente por restaurante.
+
+**Consecuencias:**
+
+- Los registros pertenecientes a un restaurante se asocian a su `restaurant_id`.
+- Las operaciones administrativas deberán comprobar los permisos del usuario autenticado.
+- El backend no confiará en identificadores enviados por el cliente para decidir los permisos.
+- Se deberá validar la coherencia de las relaciones entre restaurantes, categorías y platos.
+
+## DEC-005: Herramientas de desarrollo
+
+**Estado:** Aceptada.
+
+**Decisión:** Utilizar Visual Studio Code para el frontend y Eclipse para el backend Java.
+
+**Motivo:** Aprovechar las preferencias y el flujo de trabajo habitual del desarrollador.
+
+## DEC-006: Separación de servicios e implementaciones
+
+**Estado:** Aceptada.
+
+**Decisión:** Organizar las interfaces de servicio en `service` y sus implementaciones en `service.impl`.
+
+**Motivo:** Separar los contratos de negocio de su implementación, facilitar las pruebas y mantener una estructura consistente.
+
+**Consecuencia:** Los controladores dependerán de las interfaces de servicio y no directamente de las implementaciones concretas.
+
+## DEC-007: Uso de DTOs en la API REST
+
+**Estado:** Aceptada.
+
+**Decisión:** Utilizar DTOs de entrada y salida para las peticiones y respuestas de la API.
+
+**Motivo:** Separar el contrato público de la API del modelo de persistencia, controlar los datos expuestos y validar las entradas.
+
+**Consecuencia:** Los controladores no expondrán directamente las entidades JPA como respuestas de la API.

@@ -1,0 +1,222 @@
+# Arquitectura del proyecto Restaurant SaaS
+
+## 1. Objetivo
+
+Construir una plataforma SaaS de cartas digitales para restaurantes.
+
+Cada restaurante podrá gestionar sus categorías y platos desde un panel privado y mostrar su carta pública mediante una URL y un código QR.
+
+La plataforma compartirá infraestructura entre varios restaurantes, manteniendo aislados sus datos y operaciones.
+
+## 2. Tecnologías
+
+- Frontend: Next.js, TypeScript y Tailwind CSS.
+- Backend: Java 21, Spring Boot y Maven.
+- API: REST.
+- Base de datos: PostgreSQL gestionado por Neon.
+- Persistencia: Spring Data JPA.
+- Migraciones: Flyway.
+- Validación: Jakarta Bean Validation.
+- Monitorización: Spring Boot Actuator.
+- Reducción de código repetitivo: Lombok.
+- IDE del frontend: Visual Studio Code.
+- IDE del backend: Eclipse.
+
+## 3. Arquitectura lógica
+
+```mermaid
+flowchart TD
+    Cliente["Cliente del restaurante"]
+    Admin["Administrador del restaurante"]
+    Front["Frontend Next.js"]
+    API["API REST Spring Boot"]
+    DB[("PostgreSQL en Neon")]
+
+    Cliente -->|"Escanea QR"| Front
+    Admin -->|"Gestiona la carta"| Front
+    Front -->|"Peticiones HTTP"| API
+    API -->|"JDBC / JPA"| DB
+```
+
+## 4. Módulos principales
+
+### 4.1. Carta pública
+
+- Consultar un restaurante mediante su slug.
+- Mostrar las categorías activas.
+- Mostrar los platos disponibles.
+- Acceder mediante URL pública y código QR.
+
+### 4.2. Administración
+
+- Crear y gestionar categorías.
+- Crear, editar y desactivar platos.
+- Modificar precios, descripciones e imágenes.
+- Controlar la disponibilidad de los platos.
+
+Las operaciones administrativas deberán estar protegidas mediante autenticación y autorización antes de desplegar la aplicación en producción.
+
+### 4.3. Backend
+
+- Exponer endpoints REST.
+- Validar las peticiones de entrada.
+- Aplicar las reglas de negocio.
+- Transformar entidades en DTOs de respuesta.
+- Gestionar la autenticación y autorización.
+- Garantizar el aislamiento entre restaurantes.
+
+### 4.4. Persistencia
+
+- PostgreSQL como base de datos.
+- Flyway para versionar el esquema.
+- Spring Data JPA para el acceso a los datos.
+- Repositorios para las operaciones de persistencia.
+
+## 5. Multi-tenancy
+
+La plataforma compartirá la aplicación y la base de datos entre varios restaurantes.
+
+Cada registro perteneciente a un restaurante deberá quedar asociado a su tenant mediante `restaurant_id`.
+
+El backend determinará el ámbito de acceso a partir del usuario autenticado. No deberá confiar en un `restaurantId` enviado por el cliente para autorizar operaciones.
+
+Además, se deberá garantizar que las relaciones entre entidades de un restaurante sean coherentes. Por ejemplo, un plato no podrá pertenecer a un restaurante y estar asociado a una categoría de otro.
+
+## 6. Estructura del backend
+
+Paquete base:
+
+`com.restaurantsaas.backend`
+
+Convenciones de paquetes:
+
+- `entity`: entidades JPA.
+- `repository`: repositorios Spring Data JPA.
+- `service`: interfaces de los servicios.
+- `service.impl`: implementaciones de los servicios.
+- `controller`: controladores REST.
+- `dto.request`: DTOs de entrada.
+- `dto.response`: DTOs de salida.
+
+Se utiliza Lombok para reducir código repetitivo y se prefiere la inyección de dependencias mediante constructor con `@RequiredArgsConstructor`.
+
+## 7. Estado actual
+
+### Infraestructura y persistencia
+
+- [x] Proyecto frontend creado con Next.js.
+- [x] Proyecto Spring Boot creado e importado en Eclipse.
+- [x] Conexión con PostgreSQL en Neon verificada mediante Actuator.
+- [x] Primera migración de Flyway aplicada y verificada.
+- [x] Entidad JPA y repositorio de restaurantes.
+- [x] Entidad JPA y repositorio de categorías.
+
+### Servicios y API REST
+
+- [x] Servicio e implementación del servicio de restaurantes.
+- [x] Endpoint para consultar un restaurante por slug.
+- [x] Endpoint para crear restaurantes, todavía sin protección de autenticación.
+- [x] Servicio e implementación del servicio de categorías.
+- [x] DTOs de entrada y salida para categorías.
+- [x] Endpoint para crear categorías.
+- [x] Endpoint público para consultar categorías activas.
+- [x] Pruebas manuales de los endpoints de restaurantes y categorías.
+
+### Pendiente
+
+- [ ] Implementar entidad, repositorio, servicio, DTOs y controlador de platos.
+- [ ] Añadir pruebas automatizadas del backend.
+- [ ] Implementar autenticación y autorización.
+- [ ] Proteger los endpoints administrativos.
+- [ ] Garantizar el aislamiento entre restaurantes en todas las operaciones.
+- [ ] Integrar el frontend con la API.
+- [ ] Preparar la aplicación para el despliegue en producción.
+
+## 8. Restaurantes: primera implementación
+
+Se han implementado los siguientes componentes:
+
+- `entity.Restaurant`: mapeo de la tabla `restaurants`.
+- `repository.RestaurantRepository`: acceso a datos mediante Spring Data JPA.
+- `service.RestaurantService`: contrato de las operaciones de negocio.
+- `service.impl.RestaurantServiceImpl`: implementación del contrato.
+- `dto.request.RestaurantCreateRequest`: validación de los datos de entrada.
+- `dto.response.RestaurantResponse`: representación de los datos de salida.
+- `controller.RestaurantController`: exposición de los endpoints REST.
+
+Operaciones implementadas:
+
+- Buscar un restaurante por su slug.
+- Comprobar si un slug ya existe.
+- Crear un restaurante.
+
+### Endpoint de consulta pública
+
+- Método: `GET`.
+- Ruta: `/api/public/restaurants/{slug}`.
+- Respuesta: `RestaurantResponse`.
+- Si no existe el restaurante: HTTP 404.
+
+### Endpoint de creación
+
+- Método: `POST`.
+- Ruta: `/api/public/restaurants`.
+- Respuesta: HTTP 201 Created.
+- Los datos se validan mediante `RestaurantCreateRequest`.
+
+**Nota de seguridad:** la ruta de creación está ubicada provisionalmente bajo `/api/public` y todavía no tiene autenticación. Antes de producción deberá trasladarse a una ruta administrativa y protegerse adecuadamente.
+
+## 9. Gestión de categorías
+
+Se han implementado los siguientes componentes:
+
+- `entity.Category`: mapeo de la tabla `categories`.
+- `repository.CategoryRepository`: consultas mediante Spring Data JPA.
+- `service.CategoryService`: interfaz de las operaciones de negocio.
+- `service.impl.CategoryServiceImpl`: implementación de la lógica de negocio.
+- `dto.request.CategoryCreateRequest`: validación de los datos de entrada.
+- `dto.response.CategoryResponse`: representación de los datos de salida.
+- `controller.CategoryController`: exposición de los endpoints REST.
+
+### Endpoint de creación
+
+- Método: `POST`.
+- Ruta: `/api/admin/restaurants/{restaurantId}/categories`.
+- Respuesta: HTTP 201 Created.
+- Comprueba que el restaurante existe antes de guardar la categoría.
+
+### Endpoint de consulta pública
+
+- Método: `GET`.
+- Ruta: `/api/public/restaurants/{slug}/categories`.
+- Respuesta: lista de `CategoryResponse`.
+- Devuelve únicamente categorías activas, ordenadas por `displayOrder`.
+- Si el restaurante no existe: HTTP 404.
+
+### Reglas de negocio
+
+- Cada categoría pertenece a un restaurante.
+- Las categorías nuevas están activas por defecto.
+- Si no se especifica `displayOrder`, se utiliza `0`.
+- El nombre es obligatorio y no puede superar los 100 caracteres.
+- El orden no puede ser negativo.
+- Los controladores reciben y devuelven DTOs en lugar de exponer directamente las entidades JPA.
+
+### Seguridad pendiente
+
+El endpoint administrativo todavía no tiene autenticación ni autorización. Antes de desplegarlo, será necesario verificar que el usuario autenticado puede administrar el restaurante indicado.
+
+## 10. Siguiente paso de desarrollo
+
+Implementar la gestión de platos siguiendo el mismo patrón utilizado para restaurantes y categorías:
+
+1. Entidad JPA.
+2. Repositorio.
+3. Interfaz de servicio.
+4. Implementación del servicio.
+5. DTOs de entrada y salida.
+6. Controlador REST.
+7. Pruebas manuales y automatizadas.
+8. Actualización de la documentación.
+
+La gestión de platos deberá validar el precio, la categoría y la pertenencia al restaurante correspondiente.

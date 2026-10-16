@@ -1,0 +1,176 @@
+# Diseño de la base de datos
+
+## 1. Tecnología
+
+- Motor: PostgreSQL.
+- Proveedor: Neon.
+- Gestión de cambios: Flyway.
+- Acceso desde Java: Spring Data JPA.
+- Identificadores: UUID.
+- Fechas: TIMESTAMPTZ en PostgreSQL y OffsetDateTime en Java.
+
+## 2. Modelo entidad-relación
+
+```mermaid
+erDiagram
+    RESTAURANTS ||--o{ USERS : has
+    RESTAURANTS ||--o{ CATEGORIES : contains
+    RESTAURANTS ||--o{ DISHES : owns
+    CATEGORIES ||--o{ DISHES : groups
+
+    RESTAURANTS {
+        UUID id PK
+        VARCHAR name
+        VARCHAR slug UK
+        TIMESTAMPTZ created_at
+    }
+
+    USERS {
+        UUID id PK
+        UUID restaurant_id FK
+        VARCHAR email UK
+        VARCHAR password_hash
+        TIMESTAMPTZ created_at
+    }
+
+    CATEGORIES {
+        UUID id PK
+        UUID restaurant_id FK
+        VARCHAR name
+        INTEGER display_order
+        BOOLEAN active
+        TIMESTAMPTZ created_at
+    }
+
+    DISHES {
+        UUID id PK
+        UUID restaurant_id FK
+        UUID category_id FK
+        VARCHAR name
+        TEXT description
+        NUMERIC price
+        TEXT image_url
+        BOOLEAN available
+        INTEGER display_order
+        TIMESTAMPTZ created_at
+    }
+```
+
+## 3. Descripción de las tablas
+
+### restaurants
+
+Representa los restaurantes registrados en la plataforma.
+
+Campos principales:
+
+- `id`: identificador UUID.
+- `name`: nombre del restaurante.
+- `slug`: identificador público único utilizado en la URL de la carta.
+- `created_at`: fecha y hora de creación.
+
+### users
+
+Almacena las cuentas que administran los restaurantes.
+
+Cada usuario está asociado a un restaurante mediante `restaurant_id`.
+
+Las contraseñas se almacenarán mediante hashes seguros, nunca en texto plano.
+
+El correo electrónico tiene una restricción de unicidad global en el esquema actual.
+
+### categories
+
+Representa las secciones de la carta de cada restaurante.
+
+Campos principales:
+
+- `id`: identificador UUID.
+- `restaurant_id`: restaurante propietario.
+- `name`: nombre de la categoría.
+- `display_order`: orden de visualización.
+- `active`: indica si la categoría está activa.
+- `created_at`: fecha y hora de creación.
+
+Las categorías nuevas están activas por defecto. Si no se especifica el orden, se utiliza `0`.
+
+La consulta pública devuelve las categorías activas ordenadas por `display_order`.
+
+### dishes
+
+Contiene los platos de la carta.
+
+Campos principales:
+
+- `id`: identificador UUID.
+- `restaurant_id`: restaurante propietario.
+- `category_id`: categoría a la que pertenece.
+- `name`: nombre del plato.
+- `description`: descripción opcional.
+- `price`: precio del plato.
+- `image_url`: URL de la imagen, si existe.
+- `available`: indica si el plato está disponible.
+- `display_order`: orden de visualización.
+- `created_at`: fecha y hora de creación.
+
+Cada plato pertenece a un restaurante y a una categoría. La lógica de negocio deberá garantizar que ambos pertenezcan al mismo restaurante.
+
+## 4. Decisiones de diseño
+
+- Se utilizan UUID como identificadores.
+- Los precios se almacenan como `NUMERIC(10,2)` y se representarán en Java mediante `BigDecimal`.
+- Las claves foráneas mantienen la integridad referencial.
+- Los campos `restaurant_id` permiten delimitar los datos de cada tenant.
+- La disponibilidad permite ocultar temporalmente un plato sin eliminarlo.
+- Las categorías disponen de un campo `active` para controlar su visibilidad pública.
+- Las consultas públicas deben devolver únicamente los datos que deban mostrarse en la carta.
+- La autorización entre restaurantes deberá comprobarse en el backend.
+
+## 5. Migraciones
+
+Las migraciones SQL se almacenan en:
+
+`backend/src/main/resources/db/migration/`
+
+### V1__init.sql
+
+**Estado:** aplicada correctamente en Neon.
+
+Crea las tablas iniciales:
+
+- `restaurants`
+- `users`
+- `categories`
+- `dishes`
+
+También crea índices para facilitar las consultas por restaurante y categoría.
+
+Las migraciones posteriores deberán añadirse con una nueva versión. No se deben modificar ni renombrar migraciones que ya se hayan aplicado en un entorno compartido.
+
+## 6. Estado actual de la persistencia
+
+### Restaurantes
+
+- Entidad JPA `Restaurant` implementada.
+- Repositorio `RestaurantRepository` implementado.
+- Servicio e implementación del servicio creados.
+- Consulta por `slug` y creación de restaurantes probadas mediante la API REST.
+
+### Categorías
+
+- Entidad JPA `Category` implementada y asociada a `restaurants`.
+- Repositorio `CategoryRepository` implementado.
+- Interfaz `CategoryService` e implementación `CategoryServiceImpl` creadas.
+- DTOs `CategoryCreateRequest` y `CategoryResponse` implementados.
+- Controlador `CategoryController` implementado.
+- Creación y consulta pública de categorías probadas.
+
+La tabla `categories` ya existía en `V1__init.sql`, por lo que no ha sido necesaria una migración adicional para implementar el servicio.
+
+### Pendiente
+
+- Implementar la persistencia y los endpoints de gestión de platos.
+- Añadir pruebas automatizadas.
+- Implementar autenticación y autorización.
+- Garantizar que un plato solo pueda asociarse a una categoría del mismo restaurante.
+- Revisar si en el futuro un usuario podrá administrar varios restaurantes.
